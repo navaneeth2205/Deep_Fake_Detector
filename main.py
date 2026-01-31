@@ -12,8 +12,10 @@ from PIL import Image
 import torch
 
 from transformers import AutoImageProcessor, AutoModelForImageClassification
-from moviepy.video.io.VideoFileClip import VideoFileClip
-
+try:
+    from moviepy.video.io.VideoFileClip import VideoFileClip
+except ImportError:
+    VideoFileClip = None
 
 # -------------------------
 # App setup
@@ -239,3 +241,4 @@ async def analyze_file(file: UploadFile = File(...)):
         "indicators": indicators,
         "explanation": explanation
     }
+
