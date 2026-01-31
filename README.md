@@ -102,7 +102,7 @@ Indicators: Individual explainable checks
 Explanation: Human-readable summary of analysis
 
 ### Sample outputs
-![alt text](https://github.com/navaneeth2205/Deep_Fake_Detector/frontend/assets/images/image_sample.png?raw=true)
+![alt text](assets/images/image_sample.png?raw=true)
 
 ----------------------------------------
 ## Limitations
