@@ -27,93 +27,44 @@ Single unified backend API
 ----------------------------------------
 ## Supported Media Formats
 ### Images
-
-JPG
-
-JPEG
-
-PNG
-
-WEBP
-
-BMP
+JPG,JPEG,PNG,WEBP,BMP
 
 ### Videos
-
-MP4
-
-AVI
-
-MKV
-
-MOV
-
-WEBM
+MP4,AVI,MKV,MOV,WEBM
 
 ### Audio
-
-WAV
-
-MP3
-
-OGG
-
-AAC
-
-FLAC
-
-M4A
+WAV,MP3,OGG,AAC,FLAC,M4A
 
 ----------------------------------------
 ## Tech Stack
 ### Frontend
-
 HTML
-
 CSS
-
 JavaScript
 
 ### Backend
-
 Python
-
 FastAPI
-
 OpenCV
-
 NumPy
-
 Torch
-
 Transformers
-
 Media Processing
-
 FFmpeg
 
 ----------------------------------------
 ## System Architecture
-
 Frontend handles user interaction, uploads, and result rendering
-
 Backend handles all analysis and detection logic
-
 Communication via REST API
-
 Clear separation between UI and detection logic
 
 ----------------------------------------
 ## How It Works
-
 User uploads an image, video, or audio file
-
 Frontend sends the file to the backend /analyze endpoint
-
 Backend processes the file based on media type
-
 Analysis results are returned as structured JSON
-
 Frontend displays risk level, confidence score, indicators, and explanation
 
 ----------------------------------------
