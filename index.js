@@ -84,7 +84,7 @@ async function uploadToGradio(file) {
     );
 
     const json = await res.json();
-    return json[0]; // file reference
+    return json[0].path; // ✅ ONLY THE PATH
 }
 
 function handleFile(file, type, previewEl) {
@@ -244,4 +244,5 @@ function showToast(message) {
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
+
 
