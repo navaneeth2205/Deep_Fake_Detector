@@ -121,29 +121,48 @@ async function runDetection(type) {
     indicatorBox.innerHTML = "";
     explanationBox.textContent = "";
 
-    try {
-        const formData = new FormData();
-        formData.append("file", files[type]);
+    // Gradio expects "data"
+    const formData = new FormData();
+    formData.append("data", files[type]);
 
-        const response = await fetch("http://127.0.0.1:8000/analyze", {
+    let endpoint = "";
+
+    if (type === "image") {
+        endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_image_ui";
+    } else if (type === "video") {
+        endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_video_ui";
+    } else if (type === "audio") {
+        endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_audio_ui";
+    }
+
+    try {
+        const response = await fetch(endpoint, {
             method: "POST",
             body: formData
         });
 
         if (!response.ok) {
-            throw new Error("Server error");
+            throw new Error("Backend error");
         }
 
-        const data = await response.json();
+        const result = await response.json();
 
-        // Overall score
-        score.textContent = `${data.overall_score}%`;
+        // Gradio wraps output in data[0]
+        const outputText = result.data[0];
+
+        explanationBox.textContent = outputText;
+
+        // Extract score
+        const scoreMatch = outputText.match(/OVERALL SCORE:\s*(\d+)%/);
+        if (scoreMatch) {
+            score.textContent = `${scoreMatch[1]}%`;
+        }
 
         // Risk badge
-        if (data.risk_level === "High") {
+        if (outputText.includes("RISK LEVEL: High")) {
             badge.textContent = "High Risk";
             badge.className = "result-badge result-fake";
-        } else if (data.risk_level === "Medium") {
+        } else if (outputText.includes("RISK LEVEL: Medium")) {
             badge.textContent = "Medium Risk";
             badge.className = "result-badge result-warning";
         } else {
@@ -151,25 +170,11 @@ async function runDetection(type) {
             badge.className = "result-badge result-real";
         }
 
-        // Indicators
-        data.indicators.forEach(ind => {
-            const row = document.createElement("div");
-            row.className = "indicator-row";
-            row.innerHTML = `
-                <span>${ind.name}</span>
-                <span>${ind.score}%</span>
-            `;
-            indicatorBox.appendChild(row);
-        });
-
-        // Explanation
-        explanationBox.textContent = data.explanation;
-
         showToast("Analysis complete");
 
     } catch (err) {
         console.error(err);
-        showToast("Backend error");
+        showToast("Backend connection failed");
     } finally {
         btn.disabled = false;
         btn.innerHTML = "Detect Forgery";
@@ -227,4 +232,5 @@ function showToast(message) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
+
 }
