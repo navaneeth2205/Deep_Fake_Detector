@@ -1,32 +1,31 @@
-// --- State Management ---
-let currentTab = 'home'; // Default to dashboard
+// ===============================
+// STATE MANAGEMENT
+// ===============================
+let currentTab = 'home';
+
 const files = {
     image: null,
     video: null,
     audio: null
 };
 
-// --- Tab Switching Logic ---
+// ===============================
+// TAB SWITCHING
+// ===============================
 function switchTab(tabName) {
-    // 1. Update Navigation UI (Tabs)
-    // Find all nav links
     const navLinks = document.querySelectorAll('.nav-links a');
     navLinks.forEach(link => {
-        // Remove active class
         link.classList.remove('active');
-        // Add active class if the onclick attribute contains the tabName
         if (link.getAttribute('onclick').includes(tabName)) {
             link.classList.add('active');
         }
     });
 
-    // 2. Hide all content
     document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('show');
         content.classList.add('hidden');
+        content.classList.remove('show');
     });
 
-    // 3. Show selected content
     const selectedTab = document.getElementById(`${tabName}-tab`);
     if (selectedTab) {
         selectedTab.classList.remove('hidden');
@@ -36,19 +35,19 @@ function switchTab(tabName) {
     currentTab = tabName;
 }
 
-// --- File Handling Setup ---
-const setupFileHandler = (type) => {
+// ===============================
+// FILE HANDLING
+// ===============================
+function setupFileHandler(type) {
     const dropZone = document.getElementById(`${type}-drop-zone`);
     const input = document.getElementById(`${type}-input`);
     const preview = document.getElementById(`${type}-preview`);
 
     if (!dropZone) return;
 
-    // Click to upload
     dropZone.addEventListener('click', () => input.click());
 
-    // Drag events
-    dropZone.addEventListener('dragover', (e) => {
+    dropZone.addEventListener('dragover', e => {
         e.preventDefault();
         dropZone.classList.add('drag-over');
     });
@@ -57,7 +56,7 @@ const setupFileHandler = (type) => {
         dropZone.classList.remove('drag-over');
     });
 
-    dropZone.addEventListener('drop', (e) => {
+    dropZone.addEventListener('drop', e => {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
         if (e.dataTransfer.files.length) {
@@ -65,45 +64,47 @@ const setupFileHandler = (type) => {
         }
     });
 
-    // Input change
-    input.addEventListener('change', (e) => {
+    input.addEventListener('change', e => {
         if (e.target.files.length) {
             handleFile(e.target.files[0], type, preview);
         }
     });
-};
+}
 
 function handleFile(file, type, previewEl) {
-    const sizeLimit = type === 'image' ? 3 * 1024 * 1024 :
-        type === 'video' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    const sizeLimit =
+        type === 'image' ? 3 * 1024 * 1024 :
+        type === 'video' ? 10 * 1024 * 1024 :
+        5 * 1024 * 1024;
 
     if (file.size > sizeLimit) {
-        showToast(`File too large. Max limit is ${sizeLimit / 1024 / 1024}MB.`);
+        showToast(`File too large. Max ${sizeLimit / 1024 / 1024}MB`);
         return;
     }
 
     files[type] = file;
-    const url = URL.createObjectURL(file);
-    previewEl.src = url;
+    previewEl.src = URL.createObjectURL(file);
     previewEl.style.display = 'block';
 
-    // Hide icons/text inside dropzone
-    const icon = previewEl.parentElement.querySelector('i');
-    if (icon) icon.style.display = 'none';
-    const texts = previewEl.parentElement.querySelectorAll('p, h3');
-    texts.forEach(t => t.style.display = 'none');
+    const dropZone = previewEl.parentElement;
+    dropZone.querySelectorAll('i, h3, p').forEach(el => {
+        el.style.display = 'none';
+    });
 
-    showToast(`${file.name} uploaded successfully.`);
+    showToast(`${file.name} uploaded`);
 }
 
-// Initialize Handlers
+// Init handlers
 setupFileHandler('image');
 setupFileHandler('video');
 setupFileHandler('audio');
 
+// ===============================
+// DETECTION LOGIC (JSON BASED)
+// ===============================
 async function runDetection(type) {
     if (!files[type]) {
-        showToast("Please upload a file first.");
+        showToast("Upload a file first");
         return;
     }
 
@@ -117,21 +118,18 @@ async function runDetection(type) {
     btn.disabled = true;
     btn.innerHTML = "Analyzing...";
     resultBox.style.display = "block";
-
     indicatorBox.innerHTML = "";
     explanationBox.textContent = "";
 
-    // Gradio expects "data"
     const formData = new FormData();
-    formData.append("data", files[type]);
+    formData.append("data", files[type]); // Gradio expects "data"
 
     let endpoint = "";
-
     if (type === "image") {
         endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_image_ui";
     } else if (type === "video") {
         endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_video_ui";
-    } else if (type === "audio") {
+    } else {
         endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_audio_ui";
     }
 
@@ -141,28 +139,19 @@ async function runDetection(type) {
             body: formData
         });
 
-        if (!response.ok) {
-            throw new Error("Backend error");
-        }
+        if (!response.ok) throw new Error("Backend error");
 
         const result = await response.json();
+        const data = result.data[0];
 
-        // Gradio wraps output in data[0]
-        const outputText = result.data[0];
-
-        explanationBox.textContent = outputText;
-
-        // Extract score
-        const scoreMatch = outputText.match(/OVERALL SCORE:\s*(\d+)%/);
-        if (scoreMatch) {
-            score.textContent = `${scoreMatch[1]}%`;
-        }
+        // Score
+        score.textContent = `${data.overall_score}%`;
 
         // Risk badge
-        if (outputText.includes("RISK LEVEL: High")) {
+        if (data.risk_level === "High") {
             badge.textContent = "High Risk";
             badge.className = "result-badge result-fake";
-        } else if (outputText.includes("RISK LEVEL: Medium")) {
+        } else if (data.risk_level === "Medium") {
             badge.textContent = "Medium Risk";
             badge.className = "result-badge result-warning";
         } else {
@@ -170,17 +159,34 @@ async function runDetection(type) {
             badge.className = "result-badge result-real";
         }
 
+        // Indicators
+        data.indicators.forEach(ind => {
+            const row = document.createElement("div");
+            row.className = "indicator-row";
+            row.innerHTML = `
+                <span>${ind.name}</span>
+                <span>${ind.score}%</span>
+            `;
+            indicatorBox.appendChild(row);
+        });
+
+        // Explanation
+        explanationBox.textContent = data.explanation;
+
         showToast("Analysis complete");
 
     } catch (err) {
         console.error(err);
-        showToast("Backend connection failed");
+        showToast("Backend error");
     } finally {
         btn.disabled = false;
         btn.innerHTML = "Detect Forgery";
     }
 }
 
+// ===============================
+// RESET
+// ===============================
 function resetTool(type) {
     files[type] = null;
 
@@ -192,45 +198,34 @@ function resetTool(type) {
     const score = document.getElementById(`${type}-score`);
     const indicators = document.getElementById(`${type}-indicators`);
     const explanation = document.getElementById(`${type}-explanation`);
-    const removeBtn = document.getElementById(`${type}-remove-btn`);
 
     if (input) input.value = "";
-
     if (preview) {
         preview.src = "";
         preview.style.display = "none";
     }
 
-    if (removeBtn) removeBtn.style.display = "none";
-
     if (resultBox) resultBox.style.display = "none";
-
     if (badge) badge.textContent = "Result";
-
     if (score) score.textContent = "0%";
-
     if (indicators) indicators.innerHTML = "";
-
     if (explanation) explanation.textContent = "";
 
-    // Restore drop zone icons/text
     if (dropZone) {
-        dropZone.querySelectorAll("i, h3, p").forEach(el => {
-            el.style.display = "block";
+        dropZone.querySelectorAll('i, h3, p').forEach(el => {
+            el.style.display = 'block';
         });
     }
 
     showToast("Reset complete");
 }
 
-
-// --- Utility: Toast Notification ---
+// ===============================
+// TOAST
+// ===============================
 function showToast(message) {
     const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.classList.add('show');
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
-
+    setTimeout(() => toast.classList.remove('show'), 3000);
 }
