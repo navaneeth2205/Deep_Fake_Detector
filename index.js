@@ -71,6 +71,22 @@ function setupFileHandler(type) {
     });
 }
 
+async function uploadToGradio(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(
+        "https://bnavaneeth0522-deepfake-detection.hf.space/upload",
+        {
+            method: "POST",
+            body: formData
+        }
+    );
+
+    const json = await res.json();
+    return json[0]; // file reference
+}
+
 function handleFile(file, type, previewEl) {
     const sizeLimit =
         type === 'image' ? 3 * 1024 * 1024 :
@@ -121,33 +137,38 @@ async function runDetection(type) {
     indicatorBox.innerHTML = "";
     explanationBox.textContent = "";
 
-    const formData = new FormData();
-    formData.append("data", files[type]); // Gradio expects "data"
-
-    let endpoint = "";
-    if (type === "image") {
-        endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_image_ui";
-    } else if (type === "video") {
-        endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_video_ui";
-    } else {
-        endpoint = "https://bnavaneeth0522-deepfake-detection.hf.space/run/analyze_audio_ui";
-    }
-
     try {
-        const response = await fetch(endpoint, {
-            method: "POST",
-            body: formData
-        });
+        // 1. Upload file
+        const fileRef = await uploadToGradio(files[type]);
 
-        if (!response.ok) throw new Error("Backend error");
+        // 2. Choose endpoint
+        let endpoint = "";
+        if (type === "image") {
+            endpoint = "analyze_image_ui";
+        } else if (type === "video") {
+            endpoint = "analyze_video_ui";
+        } else {
+            endpoint = "analyze_audio_ui";
+        }
 
-        const result = await response.json();
-        const data = result.data[0];
+        // 3. Call Gradio inference
+        const res = await fetch(
+            `https://bnavaneeth0522-deepfake-detection.hf.space/run/${endpoint}`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    data: [fileRef]
+                })
+            }
+        );
 
-        // Score
+        const json = await res.json();
+        const data = json.data[0];
+
+        // UI updates
         score.textContent = `${data.overall_score}%`;
 
-        // Risk badge
         if (data.risk_level === "High") {
             badge.textContent = "High Risk";
             badge.className = "result-badge result-fake";
@@ -159,20 +180,14 @@ async function runDetection(type) {
             badge.className = "result-badge result-real";
         }
 
-        // Indicators
         data.indicators.forEach(ind => {
             const row = document.createElement("div");
             row.className = "indicator-row";
-            row.innerHTML = `
-                <span>${ind.name}</span>
-                <span>${ind.score}%</span>
-            `;
+            row.innerHTML = `<span>${ind.name}</span><span>${ind.score}%</span>`;
             indicatorBox.appendChild(row);
         });
 
-        // Explanation
         explanationBox.textContent = data.explanation;
-
         showToast("Analysis complete");
 
     } catch (err) {
@@ -229,3 +244,4 @@ function showToast(message) {
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
+
